@@ -1,0 +1,24 @@
+# Paste into a dashboard: Edit dashboard > Add card > Manual.
+# The buttons publish to the MQTT topic that the "Cinema mode (MQTT)" automation listens to.
+type: horizontal-stack
+cards:
+  - type: button
+    name: Cinema on
+    icon: mdi:movie-open
+    tap_action:
+      action: perform-action
+      perform_action: mqtt.publish
+      data:
+        topic: ha_automations/cinema_mode
+        payload: "1"
+        retain: false
+  - type: button
+    name: Cinema off
+    icon: mdi:movie-off
+    tap_action:
+      action: perform-action
+      perform_action: mqtt.publish
+      data:
+        topic: ha_automations/cinema_mode
+        payload: "0"
+        retain: false

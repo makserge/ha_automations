@@ -1,0 +1,29 @@
+# Home Assistant scripts for the projector (Android Debug Bridge integration).
+# For /config/scripts.yaml, or paste each block (without the top-level key)
+# into Settings > Automations & Scenes > Scripts > Edit in YAML.
+# Projector: 192.168.8.111, entity media_player.android_projector
+
+projector_hdmi_on:
+  alias: Projector HDMI on
+  mode: single
+  sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.android_projector
+      data:
+        command: >-
+          dumpsys power | grep -q mWakefulness=Asleep && input keyevent 26 && sleep 3;
+          am start -n com.android.tv/.SelectInputActivity;
+          sleep 2; input keyevent 19; input keyevent 20; input keyevent 66
+
+projector_off:
+  alias: Projector off
+  mode: single
+  sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.android_projector
+      data:
+        command: >-
+          input keyevent 3; sleep 1;
+          dumpsys power | grep -q mWakefulness=Awake && input keyevent 26
