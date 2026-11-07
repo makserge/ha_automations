@@ -1,0 +1,128 @@
+alias: Battery heater (B2500, 17-20 °C)
+description: Heater on below 17 °C, off above 20 °C, 1 h pause after 12 h of heating, overheat, sensor-lost and no-heat-up protection
+mode: single
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.b2500lite_b1_temp_min
+    below: 17
+    id: too_cold
+  - trigger: numeric_state
+    entity_id: sensor.b2500lite_b1_temp_min
+    above: 20
+    id: warm_enough
+  - trigger: numeric_state
+    entity_id: sensor.b2500lite_b1_temp_min
+    above: 30
+    id: overheat
+  - trigger: state
+    entity_id: sensor.b2500lite_b1_temp_min
+    to:
+      - unavailable
+      - unknown
+    for: "00:15:00"
+    id: sensor_lost
+  - trigger: template
+    value_template: >
+      {{ is_state('switch.pmrelay4_1', 'on')
+         and states('sensor.b2500lite_b1_temp_min') | float(99) < 17 }}
+    for: "02:00:00"
+    id: no_heatup
+  - trigger: state
+    entity_id: switch.pmrelay4_1
+    to: "on"
+    for: "12:00:00"
+    id: max_run
+  - trigger: state
+    entity_id: switch.pmrelay4_1
+    to: "off"
+    for: "01:00:00"
+    id: cooldown_end
+  - trigger: homeassistant
+    event: start
+    id: startup
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: too_cold
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.pmrelay4_1
+      - conditions:
+          - condition: trigger
+            id: [warm_enough, sensor_lost]
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.pmrelay4_1
+      - conditions:
+          - condition: trigger
+            id: overheat
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.pmrelay4_1
+          - action: persistent_notification.create
+            data:
+              title: Battery overheat
+              message: >
+                Battery temperature is
+                {{ states('sensor.b2500lite_b1_temp_min') }} °C (above 30 °C).
+                Heater switched off. Check the heater, inverter and
+                ventilation.
+      - conditions:
+          - condition: trigger
+            id: no_heatup
+        sequence:
+          - action: persistent_notification.create
+            data:
+              title: Battery heater not warming
+              message: >
+                Heater has been on for at least 2 hours but the battery is
+                still {{ states('sensor.b2500lite_b1_temp_min') }} °C
+                (below 17 °C). Check the heater, insulation and contact.
+      - conditions:
+          - condition: trigger
+            id: max_run
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.pmrelay4_1
+          - action: persistent_notification.create
+            data:
+              title: Battery heater paused
+              message: >
+                Heater was on for 12 hours and is off for 1 hour.
+                Battery is {{ states('sensor.b2500lite_b1_temp_min') }} °C.
+                Check insulation and heater.
+      - conditions:
+          - condition: trigger
+            id: cooldown_end
+          - condition: numeric_state
+            entity_id: sensor.b2500lite_b1_temp_min
+            below: 17
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.pmrelay4_1
+      - conditions:
+          - condition: trigger
+            id: startup
+          - condition: numeric_state
+            entity_id: sensor.b2500lite_b1_temp_min
+            below: 17
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.pmrelay4_1
+      - conditions:
+          - condition: trigger
+            id: startup
+          - condition: numeric_state
+            entity_id: sensor.b2500lite_b1_temp_min
+            above: 20
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.pmrelay4_1
